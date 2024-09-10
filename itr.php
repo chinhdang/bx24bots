@@ -1,4 +1,5 @@
 <?php
+// Disable error reporting (not recommended for production)
 error_reporting(0);
 
 
@@ -6,43 +7,51 @@ error_reporting(0);
 #####################
 ### CONFIG OF BOT ###
 #####################
+// Constants for configuration of the bot
 define('DEBUG_FILE_NAME', ''); // if you need read debug log, you should write unique log name
 define('CLIENT_ID', ''); // like 'app.67efrrt2990977.85678329' or 'local.57062d3061fc71.97850406' - This code should take in a partner's site, needed only if you want to write a message from Bot at any time without initialization by the user
 define('CLIENT_SECRET', ''); // like '8bb00435c88aaa3028a0d44320d60339' - This code should take in a partner's site, needed only if you want to write a message from Bot at any time without initialization by the user
 #####################
 
-
-
-
+// Log the incoming request for debugging purposes
 writeToLog($_REQUEST, 'ImBot Event Query');
 
+// Initialize the bot's app configuration
 $appsConfig = Array();
+// Include external configuration file if exists
 if (file_exists(__DIR__.'/config.php'))
 	include(__DIR__.'/config.php');
 
 // receive event "new message for bot"
 if ($_REQUEST['event'] == 'ONIMBOTMESSAGEADD')
 {
-	// check the event - authorize this event or not
+	// Check the event - If the application token is authorized
 	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 		return false;
 
+	// Ensure the message is from a valid chat entity type
 	if ($_REQUEST['data']['PARAMS']['CHAT_ENTITY_TYPE'] != 'LINES')
 		return false;
 
+	// Call a function to process the message	
 	itrRun($_REQUEST['auth']['application_token'], $_REQUEST['data']['PARAMS']['DIALOG_ID'], $_REQUEST['data']['PARAMS']['FROM_USER_ID'], $_REQUEST['data']['PARAMS']['MESSAGE']);
 }
+
+// Handle the event when the bot joins a chat
 if ($_REQUEST['event'] == 'ONIMBOTJOINCHAT')
 {
 	// check the event - authorize this event or not
 	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 		return false;
 
+	// Ensure the chat is Open Lines ('LINES') entity type
 	if ($_REQUEST['data']['PARAMS']['CHAT_ENTITY_TYPE'] != 'LINES')
 		return false;
 
+	// Initiate the bot's main function	
 	itrRun($_REQUEST['auth']['application_token'], $_REQUEST['data']['PARAMS']['DIALOG_ID'], $_REQUEST['data']['PARAMS']['USER_ID']);
 }
+
 // receive event "delete chat-bot"
 else if ($_REQUEST['event'] == 'ONIMBOTDELETE')
 {
@@ -59,16 +68,33 @@ else if ($_REQUEST['event'] == 'ONIMBOTDELETE')
 	// write debug log
 	writeToLog($_REQUEST['event'], 'ImBot unregister');
 }
-// receive event "Application install"
+
+// Receive event "Application install"
 else if ($_REQUEST['event'] == 'ONAPPINSTALL')
 {
-	// handler for events
+	/* Handler for events
+	In the given code snippet, $_SERVER['SERVER_NAME'] plays a key role in constructing the $handlerBackUrl by providing the domain name (or IP address) of the server where the script is running. 
+	This is important because $handlerBackUrl needs to contain the full URL that the bot can use to communicate back with the server when handling various events.
+
+	Here's a breakdown of how $_SERVER['SERVER_NAME'] fits into $handlerBackUrl:
+
+	- $handlerBackUrl is constructed as the full URL for event handlers that the bot will register. It needs to include:
+	1. The protocol (http or https), determined by checking if the server is running on port 443 or using HTTPS ($_SERVER['SERVER_PORT'] == 443 || $_SERVER["HTTPS"] == "on").
+	2. The server's domain name or IP address, provided by $_SERVER['SERVER_NAME']. This variable holds the domain name of the host where the request is being processed (like example.com).
+	3. The port number, appended to the URL if it's not the default HTTP (80) or HTTPS (443) port.
+	4. The script's path ($_SERVER['SCRIPT_NAME']), representing the path to the current executing script (like /bot.php).
+	
+	So, $_SERVER['SERVER_NAME'] ensures that the bot's callback URL points to the correct domain or IP address, where it can be reached for event handling.
+
+	For example:
+	If $_SERVER['SERVER_NAME'] is example.com, and the server is running over HTTPS (port 443), then $handlerBackUrl might look like: https://example.com/bot.php.
+	*/
 	$handlerBackUrl = ($_SERVER['SERVER_PORT']==443||$_SERVER["HTTPS"]=="on"? 'https': 'http')."://".$_SERVER['SERVER_NAME'].(in_array($_SERVER['SERVER_PORT'], Array(80, 443))?'':':'.$_SERVER['SERVER_PORT']).$_SERVER['SCRIPT_NAME'];
 
 	// If your application supports different localizations
 	// use $_REQUEST['data']['LANGUAGE_ID'] to load correct localization
 
-	// register new bot
+	// Register the bot with the Bitrix24 API
 	$result = restCommand('imbot.register', Array(
 		'CODE' => 'itrbot',
 		'TYPE' => 'O',
@@ -82,14 +108,17 @@ else if ($_REQUEST['event'] == 'ONAPPINSTALL')
 			'COLOR' => 'RED',
 		)
 	), $_REQUEST["auth"]);
+	
+	// Retrieve the bot ID from the result
 	$botId = $result['result'];
 
+	// Bind event handlers for app update
 	$result = restCommand('event.bind', Array(
 		'EVENT' => 'OnAppUpdate',
 		'HANDLER' => $handlerBackUrl
 	), $_REQUEST["auth"]);
 
-	// save params
+	// Store the new bot configuration
 	$appsConfig[$_REQUEST['auth']['application_token']] = Array(
 		'BOT_ID' => $botId,
 		'LANGUAGE_ID' => $_REQUEST['data']['LANGUAGE_ID'],
@@ -97,13 +126,14 @@ else if ($_REQUEST['event'] == 'ONAPPINSTALL')
 	);
 	saveParams($appsConfig);
 
-	// write debug log
+	// Log the bot registration
 	writeToLog(Array($botId), 'ImBot register');
 }
-// receive event "Application install"
+
+// Receive event "Application update"
 else if ($_REQUEST['event'] == 'ONAPPUPDATE')
 {
-	// check the event - authorize this event or not
+	// Check the event: check for valid application token
 	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 		return false;
 
@@ -136,19 +166,21 @@ else if ($_REQUEST['event'] == 'ONAPPUPDATE')
 }
 
 /**
- * Run ITR menu
+ * Function to run ITR (interactive text response) menu.
  *
- * @param $portalId
- * @param $dialogId
- * @param $userId
- * @param string $message
+ * @param $portalId - ID of the portal where the bot operates.
+ * @param $dialogId - ID of the dialog where the message was sent.
+ * @param $userId - ID of the user sending the message.
+ * @param string $message - Message content.
  * @return bool
  */
-function itrRun($portalId, $dialogId, $userId, $message = '')
+
+ function itrRun($portalId, $dialogId, $userId, $message = '')
 {
 	if ($userId <= 0)
 		return false;
 
+	// Define the main menu
 	$menu0 = new ItrMenu(0);
 	$menu0->setText('Main menu (#0)');
 	$menu0->addItem(1, 'Text', ItrItem::sendText('Text message (for #USER_NAME#)'));
@@ -156,6 +188,7 @@ function itrRun($portalId, $dialogId, $userId, $message = '')
 	$menu0->addItem(3, 'Open menu #1', ItrItem::openMenu(1));
 	$menu0->addItem(0, 'Wait operator answer', ItrItem::sendText('Wait operator answer', true));
 
+	// Define the secondary menu
 	$menu1 = new ItrMenu(1);
 	$menu1->setText('Second menu (#1)');
 	$menu1->addItem(2, 'Transfer to queue', ItrItem::transferToQueue('Transfer to queue'));
@@ -163,12 +196,115 @@ function itrRun($portalId, $dialogId, $userId, $message = '')
 	$menu1->addItem(4, 'Transfer to bot', ItrItem::transferToBot('marta', true, 'Transfer to bot Marta', 'Marta not found :('));
 	$menu1->addItem(5, 'Finish session', ItrItem::finishSession('Finish session'));
 	$menu1->addItem(6, 'Exec function', ItrItem::execFunction(function($context){
+		// Example: send a message when function is executed
 		$result = restCommand('imbot.message.add', Array(
 			"DIALOG_ID" => $_REQUEST['data']['PARAMS']['DIALOG_ID'],
 			"MESSAGE" => 'Function executed (action)',
 		), $_REQUEST["auth"]);
 		writeToLog($result, 'Exec function');
 	}, 'Function executed (text)'));
+	
+	/*  Example of using a custom function: send bot data and querry ($prompt) to OpenAI, 
+	get  response and send it back to user (MESSAGE in imbot.message.add)
+
+	$menu1->addItem(6, 'Exec function', ItrItem::execFunction(function($context){
+    // Thông tin yêu cầu đến OpenAI
+    $apiKey = 'YOUR_OPENAI_API_KEY';
+    $prompt = "Hello, how are you?";
+
+    // Cấu hình cURL để gọi API OpenAI
+    $curl = curl_init();
+    curl_setopt_array($curl, array(
+        CURLOPT_URL => "https://api.openai.com/v1/completions",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => array(
+            "Authorization: Bearer $apiKey",
+            "Content-Type: application/json"
+        ),
+        CURLOPT_POSTFIELDS => json_encode(array(
+            "model" => "text-davinci-003", // Mô hình bạn muốn sử dụng
+            "prompt" => $prompt,
+            "max_tokens" => 50 // Số lượng token tối đa OpenAI trả về
+        ))
+    ));
+
+    // Thực hiện yêu cầu và nhận kết quả từ OpenAI
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    // Giả sử kết quả trả về là JSON, phân tích kết quả
+    $openAiResponse = json_decode($response, true);
+    $generatedText = $openAiResponse['choices'][0]['text'];
+
+    // Gửi tin nhắn có chứa kết quả từ OpenAI tới người dùng trong Bitrix24
+    $result = restCommand('imbot.message.add', Array(
+        "DIALOG_ID" => $_REQUEST['data']['PARAMS']['DIALOG_ID'],
+        "MESSAGE" => "OpenAI trả lời: " . $generatedText,
+    ), $_REQUEST["auth"]);
+
+    // Ghi lại log kết quả
+    writeToLog($result, 'Exec function');
+	}, 'Function executed (text)'));
+	*/
+	
+	// --------------------****--------------------
+	
+	/*
+	$menu1->addItem(6, 'Exec function', ItrItem::execFunction(function($context){
+    
+	// Lấy itemId mà người dùng đã chọn từ request tự động
+    $userChoice = 'Item ' . $_REQUEST['data']['PARAMS']['MESSAGE']; // Dữ liệu của item đã chọn từ người dùng
+
+	// Lựa chọn của người dùng bằng cách điển thủ công nội dung muốn gửi
+    $userChoice = 'Item 6';
+	
+	// URL Webhook của Make.com
+    $webhookUrl = 'https://hook.make.com/abc123xyz';
+
+    // Thông tin định danh từ Bitrix24
+    $botId = $_REQUEST['auth']['application_token'];
+    $chatId = $_REQUEST['data']['PARAMS']['CHAT_ENTITY_TYPE'];
+    $dialogId = $_REQUEST['data']['PARAMS']['DIALOG_ID'];
+
+    // Dữ liệu cần gửi tới Webhook Make.com
+    $data = array(
+        'choice' => $userChoice,
+        'bot_id' => $botId,
+        'chat_id' => $chatId,
+        'dialog_id' => $dialogId
+    );
+
+    // Cấu hình cURL để gửi yêu cầu POST tới Webhook Make.com
+    $curl = curl_init();
+    curl_setopt_array($curl, array(
+        CURLOPT_URL => $webhookUrl,  // URL của Webhook
+        CURLOPT_RETURNTRANSFER => true,  // Trả về phản hồi
+        CURLOPT_POST => true,  // Phương thức POST
+        CURLOPT_HTTPHEADER => array('Content-Type: application/json'),  // Định dạng JSON
+        CURLOPT_POSTFIELDS => json_encode($data)  // Dữ liệu gửi đi
+    ));
+
+    // Thực hiện yêu cầu và nhận phản hồi từ Webhook
+    $response = curl_exec($curl);
+    curl_close($curl);
+
+    // Phân tích phản hồi từ Webhook (giả sử phản hồi dạng JSON)
+    $jsonResponse = json_decode($response, true);
+
+    // Lấy giá trị 'response' từ phản hồi
+    $responseMessage = isset($jsonResponse['response']) ? $jsonResponse['response'] : 'Không có phản hồi hợp lệ';
+
+    // Gửi phản hồi từ Make.com về cho người dùng trong Bitrix24
+    $result = restCommand('imbot.message.add', Array(
+        "DIALOG_ID" => $_REQUEST['data']['PARAMS']['DIALOG_ID'],
+        "MESSAGE" => "Make.com trả lời: " . $responseMessage,
+    ), $_REQUEST["auth"]);
+
+    // Ghi lại log phản hồi từ Webhook
+    writeToLog($result, 'Webhook Response');
+	}, 'Function executed (text)'));
+	*/
 	$menu1->addItem(9, 'Back to main menu', ItrItem::openMenu(0));
 
 	$itr = new Itr($portalId, $dialogId, 0, $userId);
@@ -187,6 +323,7 @@ function itrRun($portalId, $dialogId, $userId, $message = '')
  * @param $params
  * @return bool
  */
+
 function saveParams($params)
 {
 	$config = "<?php\n";
@@ -199,23 +336,26 @@ function saveParams($params)
 }
 
 /**
- * Send rest query to Bitrix24.
- *
- * @param $method - Rest method, ex: methods
- * @param array $params - Method params, ex: Array()
- * @param array $auth - Authorize data, received from event
- * @param boolean $authRefresh - If authorize is expired, refresh token
+ * Send a REST API command to Bitrix24.
+ * @param $method - Method name for Bitrix REST API.
+ * @param array $params - Parameters for the method.
+ * @param array $auth - Authorization data.
+ * @param boolean $authRefresh - Flag to refresh the authorization token if expired.
  * @return mixed
  */
 function restCommand($method, array $params = Array(), array $auth = Array(), $authRefresh = true)
 {
+	// $auth["client_endpoint"] là URL gốc để truy cập API của Bitrix24.
+	// $method là tên của phương thức API mà bạn muốn gọi (ví dụ: 'imbot.message.add').
+	// $queryData là dữ liệu sẽ được gửi tới API. Dữ liệu này bao gồm các tham số ($params) và access_token để xác thực.
 	$queryUrl = $auth["client_endpoint"].$method;
 	$queryData = http_build_query(array_merge($params, array("auth" => $auth["access_token"])));
 
 	writeToLog(Array('URL' => $queryUrl, 'PARAMS' => array_merge($params, array("auth" => $auth["access_token"]))), 'ImBot send data');
 
-	$curl = curl_init();
-
+	// Execute the REST API call using cURL
+	$curl = curl_init(); // khởi tạo phiên làm việc với cURL.
+	// Các tùy chọn của cURL (CURLOPT_POST, CURLOPT_URL, CURLOPT_POSTFIELDS) được thiết lập để gửi một yêu cầu POST tới URL API.
 	curl_setopt_array($curl, array(
 		CURLOPT_POST => 1,
 		CURLOPT_HEADER => 0,
@@ -225,11 +365,14 @@ function restCommand($method, array $params = Array(), array $auth = Array(), $a
 		CURLOPT_POSTFIELDS => $queryData,
 	));
 
-	$result = curl_exec($curl);
-	curl_close($curl);
+	$result = curl_exec($curl); // thực hiện yêu cầu và lưu kết quả trả về.
+	curl_close($curl); // đóng phiên làm việc với cURL sau khi yêu cầu được thực hiện.
 
-	$result = json_decode($result, 1);
+	// Phản hồi từ API Bitrix24 được trả về dưới dạng chuỗi JSON, và ở đây ta phân tích chuỗi JSON thành mảng PHP (json_decode($result, 1)).
+	$result = json_decode($result, 1); 
 
+	// Nếu phản hồi từ API chứa lỗi liên quan đến việc token hết hạn (expired_token hoặc invalid_token), 
+	// hàm sẽ gọi restAuth() để làm mới token xác thực.
 	if ($authRefresh && isset($result['error']) && in_array($result['error'], array('expired_token', 'invalid_token')))
 	{
 		$auth = restAuth($auth);
