@@ -1,6 +1,10 @@
 <?php
 // Khai báo chế độ strict types cho PHP
 declare(strict_types=1);
+session_start();
+
+// Bao gồm autoloader để tải các lớp cần thiết
+require_once 'vendor/autoload.php';
 
 // Bao gồm các lớp cần thiết từ Bitrix24 PHP SDK và các thư viện khác
 use Bitrix24\SDK\Core\Credentials\AuthToken;
@@ -12,30 +16,26 @@ use Monolog\Processor\MemoryUsageProcessor;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpFoundation\Request;
 
-// Bao gồm autoloader để tải các lớp cần thiết
-require_once 'vendor/autoload.php';
-
-// Định nghĩa các hằng số cho CLIENT_ID và CLIENT_SECRET
-define('CLIENT_ID', 'local.66d7563c7793e6.21062361'); // Thay bằng CLIENT_ID của bạn
-define('CLIENT_SECRET', 'lW0G5wkmRjabYC8P7uYulZ3UtV88WcY2px4kAfHfDpojdcxgye'); // Thay bằng CLIENT_SECRET của bạn
-define('WEBHOOK_URL', 'https://www.uchat.com.au/api/iwh/020dfaf0037d162d394fbb65b192e2e0'); // Thay bằng URL webhook của bạn
-
-// Tạo đối tượng Request từ HTTP request hiện tại
-$request = Request::createFromGlobals();
-
 // Tạo logger để ghi log (không bắt buộc)
 $log = new Logger('bitrix24-php-sdk');
 $log->pushHandler(new StreamHandler('bitrix24-php-sdk.log'));
 $log->pushProcessor(new MemoryUsageProcessor(true, true));
 
+// Tạo đối tượng Request từ HTTP request hiện tại
+$request = Request::createFromGlobals();
+
 // Tạo ServiceBuilderFactory với EventDispatcher và Logger
 $serviceBuilderFactory = new ServiceBuilderFactory(new EventDispatcher(), $log);
 
+
+// Định nghĩa các hằng số cho CLIENT_ID và CLIENT_SECRET
+define('WEBHOOK_URL', 'https://www.uchat.com.au/api/iwh/020dfaf0037d162d394fbb65b192e2e0'); // Thay bằng URL webhook của bạn
+
 // Khởi tạo ApplicationProfile với CLIENT_ID và CLIENT_SECRET
 $appProfile = ApplicationProfile::initFromArray([
-    'BITRIX24_PHP_SDK_APPLICATION_CLIENT_ID' => CLIENT_ID,
-    'BITRIX24_PHP_SDK_APPLICATION_CLIENT_SECRET' => CLIENT_SECRET,
-    'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => 'imbot', // Phạm vi cần thiết cho chatbot
+    'BITRIX24_PHP_SDK_APPLICATION_CLIENT_ID' => getenv('CLIENT_ID'),
+    'BITRIX24_PHP_SDK_APPLICATION_CLIENT_SECRET' => getenv('CLIENT_SECRET'),
+    'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => 'crm,imbot,impoenlines,imconnector,im.import,messagesevice,im', // Phạm vi cần thiết cho chatbot
 ]);
 
 // Lấy thông tin AUTH từ request
