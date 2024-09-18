@@ -35,7 +35,7 @@ define('WEBHOOK_URL', 'https://www.uchat.com.au/api/iwh/020dfaf0037d162d394fbb65
 $appProfile = ApplicationProfile::initFromArray([
     'BITRIX24_PHP_SDK_APPLICATION_CLIENT_ID' => getenv('CLIENT_ID'),
     'BITRIX24_PHP_SDK_APPLICATION_CLIENT_SECRET' => getenv('CLIENT_SECRET'),
-    'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => 'crm,imbot,impopenlines,imconnector,im.import,messagesevice,im', // Phạm vi cần thiết cho chatbot
+    'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => getenv('SCOPE'), // Phạm vi cần thiết cho chatbot
 ]);
 
 // Lấy thông tin AUTH từ request
