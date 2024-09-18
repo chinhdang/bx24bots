@@ -65,6 +65,15 @@ function getAuth($request)
     }
 }
 
+// Lấy thông tin xác thực từ request
+$auth = getAuth($request);
+
+// Kiểm tra xem $auth có phải là đối tượng AuthToken hợp lệ không
+if (!$auth instanceof AuthToken) {
+    echo 'Authentication failed. No valid AuthToken found.';
+    exit; // Thoát nếu không lấy được thông tin xác thực
+}
+
 // Khởi tạo dịch vụ Bitrix24
 $bitrix24 = $serviceBuilderFactory->initFromRequest($appProfile, $auth, $request->get('DOMAIN'));
 
