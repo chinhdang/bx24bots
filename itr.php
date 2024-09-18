@@ -33,36 +33,36 @@ define('WEBHOOK_URL', 'https://www.uchat.com.au/api/iwh/020dfaf0037d162d394fbb65
 
 // Khởi tạo ApplicationProfile với CLIENT_ID và CLIENT_SECRET
 $appProfile = ApplicationProfile::initFromArray([
-    'BITRIX24_PHP_SDK_APPLICATION_CLIENT_ID' => getenv('CLIENT_ID'),
-    'BITRIX24_PHP_SDK_APPLICATION_CLIENT_SECRET' => getenv('CLIENT_SECRET'),
-    'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => getenv('SCOPE'), // Phạm vi cần thiết cho chatbot
+	'BITRIX24_PHP_SDK_APPLICATION_CLIENT_ID' => getenv('CLIENT_ID'),
+	'BITRIX24_PHP_SDK_APPLICATION_CLIENT_SECRET' => getenv('CLIENT_SECRET'),
+	'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => getenv('SCOPE'), // Phạm vi cần thiết cho chatbot
 ]);
 
 // Hàm lấy thông tin xác thực
 function getAuth($request)
 {
-    if (isset($_SESSION['AUTH'])) {
-        return AuthToken::initFromArray($_SESSION['AUTH']);
-    } elseif ($request->request->has('AUTH_ID') && $request->request->has('REFRESH_ID')) {
-        $expiresIn = (int)$request->request->get('AUTH_EXPIRES');
-        $expires = time() + $expiresIn;
-        
-        $authData = [
-            'access_token' => $request->request->get('AUTH_ID'),
-            'refresh_token' => $request->request->get('REFRESH_ID'),
-            'member_id' => $request->request->get('member_id'),
-            'domain' => $request->request->get('DOMAIN'),
-            'application_token' => $request->request->get('APP_SID'),
-            'expires_in' => $expiresIn,
-            'expires' => $expires, // Thêm khóa 'expires' vào mảng
-        ];
+	if (isset($_SESSION['AUTH'])) {
+		return AuthToken::initFromArray($_SESSION['AUTH']);
+	} elseif ($request->request->has('AUTH_ID') && $request->request->has('REFRESH_ID')) {
+		$expiresIn = (int)$request->request->get('AUTH_EXPIRES');
+		$expires = time() + $expiresIn;
 
-        $_SESSION['AUTH'] = $authData;
+		$authData = [
+			'access_token' => $request->request->get('AUTH_ID'),
+			'refresh_token' => $request->request->get('REFRESH_ID'),
+			'member_id' => $request->request->get('member_id'),
+			'domain' => $request->request->get('DOMAIN'),
+			'application_token' => $request->request->get('APP_SID'),
+			'expires_in' => $expiresIn,
+			'expires' => $expires, // Thêm khóa 'expires' vào mảng
+		];
 
-        return AuthToken::initFromArray($authData);
-    } else {
-        return null; // Trả về null thay vì false
-    }
+		$_SESSION['AUTH'] = $authData;
+
+		return AuthToken::initFromArray($authData);
+	} else {
+		return null; // Trả về null thay vì false
+	}
 }
 
 // Lấy thông tin xác thực từ request
@@ -70,8 +70,8 @@ $auth = getAuth($request);
 
 // Kiểm tra xem $auth có phải là đối tượng AuthToken hợp lệ không
 if (!$auth instanceof AuthToken) {
-    echo 'Authentication failed. No valid AuthToken found.';
-    exit; // Thoát nếu không lấy được thông tin xác thực
+	echo 'Authentication failed. No valid AuthToken found.';
+	exit; // Thoát nếu không lấy được thông tin xác thực
 }
 
 // Khởi tạo dịch vụ Bitrix24
@@ -86,59 +86,50 @@ $log->info('Received request from Bitrix24', $requestData);
 
 // Kiểm tra xem có khóa "event" trong $_REQUEST hay không
 if (isset($_REQUEST['event'])) {
-    // Nhận sự kiện từ $_REQUEST
-    $event = $_REQUEST['event'];
-	
-// receive event "new message for bot"
-if ($_REQUEST['event'] == 'ONIMBOTMESSAGEADD')
-{
-	// Check the event - If the application token is authorized
-	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
-		return false;
+	$event = $_REQUEST['event']; // Nhận sự kiện từ $_REQUEST
 
-	// Ensure the message is from a valid chat entity type
-	if ($_REQUEST['data']['PARAMS']['CHAT_ENTITY_TYPE'] != 'LINES')
-		return false;
+	// receive event "new message for bot"
+	if ($_REQUEST['event'] == 'ONIMBOTMESSAGEADD') {
+		if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
+			return false; // Check the event - If the application token is authorized
+		if ($_REQUEST['data']['PARAMS']['CHAT_ENTITY_TYPE'] != 'LINES')
+			return false; // Ensure the message is from a valid chat entity type
+		itrRun($_REQUEST['auth']['application_token'], $_REQUEST['data']['PARAMS']['DIALOG_ID'], $_REQUEST['data']['PARAMS']['FROM_USER_ID'], $_REQUEST['data']['PARAMS']['MESSAGE']); // Call a function to process the message
+	}
 
-	// Call a function to process the message	
-	itrRun($_REQUEST['auth']['application_token'], $_REQUEST['data']['PARAMS']['DIALOG_ID'], $_REQUEST['data']['PARAMS']['FROM_USER_ID'], $_REQUEST['data']['PARAMS']['MESSAGE']);
-}
+	// Handle the event when the bot joins a chat
+	if ($_REQUEST['event'] == 'ONIMBOTJOINCHAT') {
+		// check the event - authorize this event or not
+		if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
+			return false;
 
-// Handle the event when the bot joins a chat
-if ($_REQUEST['event'] == 'ONIMBOTJOINCHAT')
-{
-	// check the event - authorize this event or not
-	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
-		return false;
+		// Ensure the chat is Open Lines ('LINES') entity type
+		if ($_REQUEST['data']['PARAMS']['CHAT_ENTITY_TYPE'] != 'LINES')
+			return false;
 
-	// Ensure the chat is Open Lines ('LINES') entity type
-	if ($_REQUEST['data']['PARAMS']['CHAT_ENTITY_TYPE'] != 'LINES')
-		return false;
+		// Initiate the bot's main function	
+		itrRun($_REQUEST['auth']['application_token'], $_REQUEST['data']['PARAMS']['DIALOG_ID'], $_REQUEST['data']['PARAMS']['USER_ID']);
+	}
 
-	// Initiate the bot's main function	
-	itrRun($_REQUEST['auth']['application_token'], $_REQUEST['data']['PARAMS']['DIALOG_ID'], $_REQUEST['data']['PARAMS']['USER_ID']);
-}
+	// receive event "delete chat-bot"
+	else if ($_REQUEST['event'] == 'ONIMBOTDELETE') {
+		// check the event - authorize this event or not
+		if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
+			return false;
 
-// receive event "delete chat-bot"
-else if ($_REQUEST['event'] == 'ONIMBOTDELETE')
-{
-	// check the event - authorize this event or not
-	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
-		return false;
+		// unset application variables
+		unset($appsConfig[$_REQUEST['auth']['application_token']]);
 
-	// unset application variables
-	unset($appsConfig[$_REQUEST['auth']['application_token']]);
+		// save params
+		saveParams($appsConfig);
 
-	// save params
-	saveParams($appsConfig);
-
-	// write debug log
-	writeToLog($_REQUEST['event'], 'ImBot unregister');
-}
+		// write debug log
+		writeToLog($_REQUEST['event'], 'ImBot unregister');
+	}
+} 
 
 // Receive event "Application install"
-else if ($_REQUEST['event'] == 'ONAPPINSTALL')
-{
+else if ($_REQUEST['event'] == 'ONAPPINSTALL') {
 	/* Handler for events
 	In the given code snippet, $_SERVER['SERVER_NAME'] plays a key role in constructing the $handlerBackUrl by providing the domain name (or IP address) of the server where the script is running. 
 	This is important because $handlerBackUrl needs to contain the full URL that the bot can use to communicate back with the server when handling various events.
@@ -156,37 +147,37 @@ else if ($_REQUEST['event'] == 'ONAPPINSTALL')
 	For example:
 	If $_SERVER['SERVER_NAME'] is example.com, and the server is running over HTTPS (port 443), then $handlerBackUrl might look like: https://example.com/bot.php.
 	*/
-	$handlerBackUrl = ($_SERVER['SERVER_PORT']==443||$_SERVER["HTTPS"]=="on"? 'https': 'http')."://".$_SERVER['SERVER_NAME'].(in_array($_SERVER['SERVER_PORT'], Array(80, 443))?'':':'.$_SERVER['SERVER_PORT']).$_SERVER['SCRIPT_NAME'];
+	$handlerBackUrl = ($_SERVER['SERVER_PORT'] == 443 || $_SERVER["HTTPS"] == "on" ? 'https' : 'http') . "://" . $_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443)) ? '' : ':' . $_SERVER['SERVER_PORT']) . $_SERVER['SCRIPT_NAME'];
 
 	// If your application supports different localizations
 	// use $_REQUEST['data']['LANGUAGE_ID'] to load correct localization
 
 	// Register the bot with the Bitrix24 API
-	$result = restCommand('imbot.register', Array(
+	$result = restCommand('imbot.register', array(
 		'CODE' => 'itrbot',
 		'TYPE' => 'O',
 		'EVENT_MESSAGE_ADD' => $handlerBackUrl,
 		'EVENT_WELCOME_MESSAGE' => $handlerBackUrl,
 		'EVENT_BOT_DELETE' => $handlerBackUrl,
 		'OPENLINE' => 'Y',
-		'PROPERTIES' => Array(
-			'NAME' => 'ITR Bot for Open Channels #'.(count($appsConfig)+1),
+		'PROPERTIES' => array(
+			'NAME' => 'ITR Bot for Open Channels #' . (count($appsConfig) + 1),
 			'WORK_POSITION' => "Get ITR menu for you open channel",
 			'COLOR' => 'RED',
 		)
 	), $_REQUEST["auth"]);
-	
+
 	// Retrieve the bot ID from the result
 	$botId = $result['result'];
 
 	// Bind event handlers for app update
-	$result = restCommand('event.bind', Array(
+	$result = restCommand('event.bind', array(
 		'EVENT' => 'OnAppUpdate',
 		'HANDLER' => $handlerBackUrl
 	), $_REQUEST["auth"]);
 
 	// Store the new bot configuration
-	$appsConfig[$_REQUEST['auth']['application_token']] = Array(
+	$appsConfig[$_REQUEST['auth']['application_token']] = array(
 		'BOT_ID' => $botId,
 		'LANGUAGE_ID' => $_REQUEST['data']['LANGUAGE_ID'],
 		'AUTH' => $_REQUEST['auth'],
@@ -194,18 +185,16 @@ else if ($_REQUEST['event'] == 'ONAPPINSTALL')
 	saveParams($appsConfig);
 
 	// Log the bot registration
-	writeToLog(Array($botId), 'ImBot register');
+	writeToLog(array($botId), 'ImBot register');
 }
 
 // Receive event "Application update"
-else if ($_REQUEST['event'] == 'ONAPPUPDATE')
-{
+else if ($_REQUEST['event'] == 'ONAPPUPDATE') {
 	// Check the event: check for valid application token
 	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 		return false;
 
-	if ($_REQUEST['data']['VERSION'] == 2)
-	{
+	if ($_REQUEST['data']['VERSION'] == 2) {
 		// Some logic in update event for VERSION 2
 		// You can execute any method RestAPI, BotAPI or ChatAPI, for example delete or add a new command to the bot
 		/*
@@ -221,9 +210,7 @@ else if ($_REQUEST['event'] == 'ONAPPUPDATE')
 			'COMMAND_ID' => $appsConfig[$_REQUEST['auth']['application_token']]['COMMAND_ECHO'],
 		), $_REQUEST["auth"]);
 		*/
-	}
-	else
-	{
+	} else {
 		// send answer message
 		$result = restCommand('app.info', array(), $_REQUEST["auth"]);
 	}
@@ -242,7 +229,7 @@ else if ($_REQUEST['event'] == 'ONAPPUPDATE')
  * @return bool
  */
 
- function itrRun($portalId, $dialogId, $userId, $message = '')
+function itrRun($portalId, $dialogId, $userId, $message = '')
 {
 	if ($userId <= 0)
 		return false;
@@ -262,15 +249,15 @@ else if ($_REQUEST['event'] == 'ONAPPUPDATE')
 	$menu1->addItem(3, 'Transfer to user', ItrItem::transferToUser(1, false, 'Transfer to user #1'));
 	$menu1->addItem(4, 'Transfer to bot', ItrItem::transferToBot('marta', true, 'Transfer to bot Marta', 'Marta not found :('));
 	$menu1->addItem(5, 'Finish session', ItrItem::finishSession('Finish session'));
-	$menu1->addItem(6, 'Exec function', ItrItem::execFunction(function($context){
+	$menu1->addItem(6, 'Exec function', ItrItem::execFunction(function ($context) {
 		// Example: send a message when function is executed
-		$result = restCommand('imbot.message.add', Array(
+		$result = restCommand('imbot.message.add', array(
 			"DIALOG_ID" => $_REQUEST['data']['PARAMS']['DIALOG_ID'],
 			"MESSAGE" => 'Function executed (action)',
 		), $_REQUEST["auth"]);
 		writeToLog($result, 'Exec function');
 	}, 'Function executed (text)'));
-	
+
 	/*  Example of using a custom function: send bot data and querry ($prompt) to OpenAI, 
 	get  response and send it back to user (MESSAGE in imbot.message.add)
 
@@ -314,9 +301,9 @@ else if ($_REQUEST['event'] == 'ONAPPUPDATE')
     writeToLog($result, 'Exec function');
 	}, 'Function executed (text)'));
 	*/
-	
+
 	// --------------------****--------------------
-	
+
 	/*
 	$menu1->addItem(6, 'Exec function', ItrItem::execFunction(function($context){
     
@@ -394,10 +381,10 @@ else if ($_REQUEST['event'] == 'ONAPPUPDATE')
 function saveParams($params)
 {
 	$config = "<?php\n";
-	$config .= "\$appsConfig = ".var_export($params, true).";\n";
+	$config .= "\$appsConfig = " . var_export($params, true) . ";\n";
 	$config .= "?>";
 
-	file_put_contents(__DIR__."/config.php", $config);
+	file_put_contents(__DIR__ . "/config.php", $config);
 
 	return true;
 }
@@ -411,15 +398,15 @@ function saveParams($params)
  * @return mixed
  */
 
-function restCommand($method, array $params = Array(), array $auth = Array(), $authRefresh = true)
+function restCommand($method, array $params = array(), array $auth = array(), $authRefresh = true)
 {
 	// $auth["client_endpoint"] là URL gốc để truy cập API của Bitrix24.
 	// $method là tên của phương thức API mà bạn muốn gọi (ví dụ: 'imbot.message.add').
 	// $queryData là dữ liệu sẽ được gửi tới API. Dữ liệu này bao gồm các tham số ($params) và access_token để xác thực.
-	$queryUrl = $auth["client_endpoint"].$method;
+	$queryUrl = $auth["client_endpoint"] . $method;
 	$queryData = http_build_query(array_merge($params, array("auth" => $auth["access_token"])));
 
-	writeToLog(Array('URL' => $queryUrl, 'PARAMS' => array_merge($params, array("auth" => $auth["access_token"]))), 'ImBot send data');
+	writeToLog(array('URL' => $queryUrl, 'PARAMS' => array_merge($params, array("auth" => $auth["access_token"]))), 'ImBot send data');
 
 	// Execute the REST API call using cURL
 	$curl = curl_init(); // khởi tạo phiên làm việc với cURL.
@@ -437,15 +424,13 @@ function restCommand($method, array $params = Array(), array $auth = Array(), $a
 	curl_close($curl); // đóng phiên làm việc với cURL sau khi yêu cầu được thực hiện.
 
 	// Phản hồi từ API Bitrix24 được trả về dưới dạng chuỗi JSON, và ở đây ta phân tích chuỗi JSON thành mảng PHP (json_decode($result, 1)).
-	$result = json_decode($result, 1); 
+	$result = json_decode($result, 1);
 
 	// Nếu phản hồi từ API chứa lỗi liên quan đến việc token hết hạn (expired_token hoặc invalid_token), 
 	// hàm sẽ gọi restAuth() để làm mới token xác thực.
-	if ($authRefresh && isset($result['error']) && in_array($result['error'], array('expired_token', 'invalid_token')))
-	{
+	if ($authRefresh && isset($result['error']) && in_array($result['error'], array('expired_token', 'invalid_token'))) {
 		$auth = restAuth($auth);
-		if ($auth)
-		{
+		if ($auth) {
 			$result = restCommand($method, $params, $auth, false);
 		}
 	}
@@ -464,7 +449,7 @@ function restAuth($auth)
 	if (!CLIENT_ID || !CLIENT_SECRET)
 		return false;
 
-	if(!isset($auth['refresh_token']))
+	if (!isset($auth['refresh_token']))
 		return false;
 
 	$queryUrl = 'https://oauth.bitrix.info/oauth/token/';
@@ -475,32 +460,29 @@ function restAuth($auth)
 		'refresh_token' => $auth['refresh_token'],
 	));
 
-	writeToLog(Array('URL' => $queryUrl, 'PARAMS' => $queryParams), 'ImBot request auth data');
+	writeToLog(array('URL' => $queryUrl, 'PARAMS' => $queryParams), 'ImBot request auth data');
 
 	$curl = curl_init();
 
 	curl_setopt_array($curl, array(
 		CURLOPT_HEADER => 0,
 		CURLOPT_RETURNTRANSFER => 1,
-		CURLOPT_URL => $queryUrl.'?'.$queryData,
+		CURLOPT_URL => $queryUrl . '?' . $queryData,
 	));
 
 	$result = curl_exec($curl);
 	curl_close($curl);
 
 	$result = json_decode($result, 1);
-	if (!isset($result['error']))
-	{
-		$appsConfig = Array();
-		if (file_exists(__DIR__.'/config.php'))
-			include(__DIR__.'/config.php');
+	if (!isset($result['error'])) {
+		$appsConfig = array();
+		if (file_exists(__DIR__ . '/config.php'))
+			include(__DIR__ . '/config.php');
 
 		$result['application_token'] = $auth['application_token'];
 		$appsConfig[$auth['application_token']]['AUTH'] = $result;
 		saveParams($appsConfig);
-	}
-	else
-	{
+	} else {
 		$result = false;
 	}
 
@@ -521,12 +503,12 @@ function writeToLog($data, $title = '')
 		return false;
 
 	$log = "\n------------------------\n";
-	$log .= date("Y.m.d G:i:s")."\n";
-	$log .= (strlen($title) > 0 ? $title : 'DEBUG')."\n";
+	$log .= date("Y.m.d G:i:s") . "\n";
+	$log .= (strlen($title) > 0 ? $title : 'DEBUG') . "\n";
 	$log .= print_r($data, 1);
 	$log .= "\n------------------------\n";
 
-	file_put_contents(__DIR__."/".DEBUG_FILE_NAME, $log, FILE_APPEND);
+	file_put_contents(__DIR__ . "/" . DEBUG_FILE_NAME, $log, FILE_APPEND);
 
 	return true;
 }
@@ -546,7 +528,7 @@ function prepareText($message)
 	$message = preg_replace("/\[USER=([0-9]{1,})\](.*?)\[\/USER\]/i", "$2", $message);
 	$message = preg_replace("/\[CHAT=([0-9]{1,})\](.*?)\[\/CHAT\]/i", "$2", $message);
 	$message = preg_replace("/\[PCH=([0-9]{1,})\](.*?)\[\/PCH\]/i", "$2", $message);
-	$message = preg_replace('#\-{54}.+?\-{54}#s', "", str_replace(array("#BR#"), Array(" "), $message));
+	$message = preg_replace('#\-{54}.+?\-{54}#s', "", str_replace(array("#BR#"), array(" "), $message));
 	$message = strip_tags($message);
 
 	return trim($message);
@@ -567,8 +549,8 @@ class Itr
 	private $cacheId = '';
 	private static $executed = false;
 
-	private $menuItems = Array();
-	private $menuText = Array();
+	private $menuItems = array();
+	private $menuText = array();
 
 	private $currentMenu = 0;
 	private $skipShowMenu = false;
@@ -597,20 +579,16 @@ class Itr
 	 */
 	private function getCurrentMenu()
 	{
-		$this->cacheId = md5($this->portalId.$this->botId.$this->dialogId);
+		$this->cacheId = md5($this->portalId . $this->botId . $this->dialogId);
 
-		if (file_exists(__DIR__.'/cache') && file_exists(__DIR__.'/cache/'.$this->cacheId.'.cache'))
-		{
-			$this->currentMenu = intval(file_get_contents(__DIR__.'/cache/'.$this->cacheId.'.cache'));
-		}
-		else
-		{
-			if (!file_exists(__DIR__.'/cache'))
-			{
-				mkdir(__DIR__.'/cache');
- 				chmod(__DIR__.'/cache', 0777);
+		if (file_exists(__DIR__ . '/cache') && file_exists(__DIR__ . '/cache/' . $this->cacheId . '.cache')) {
+			$this->currentMenu = intval(file_get_contents(__DIR__ . '/cache/' . $this->cacheId . '.cache'));
+		} else {
+			if (!file_exists(__DIR__ . '/cache')) {
+				mkdir(__DIR__ . '/cache');
+				chmod(__DIR__ . '/cache', 0777);
 			}
-			file_put_contents(__DIR__.'/cache/'.$this->cacheId.'.cache', 0);
+			file_put_contents(__DIR__ . '/cache/' . $this->cacheId . '.cache', 0);
 		}
 	}
 
@@ -621,102 +599,79 @@ class Itr
 	private function setCurrentMenu($id)
 	{
 		$this->currentMenu = intval($id);
-		file_put_contents(__DIR__.'/cache/'.$this->cacheId.'.cache', $this->currentMenu);
+		file_put_contents(__DIR__ . '/cache/' . $this->cacheId . '.cache', $this->currentMenu);
 	}
 
 	private function execMenuItem($itemId = '')
 	{
-		if ($itemId === '')
-		{
+		if ($itemId === '') {
 			return true;
-		}
-		else if ($itemId === "0")
-		{
+		} else if ($itemId === "0") {
 			$this->skipShowMenu = true;
 		}
 
-		if (!isset($this->menuItems[$this->currentMenu][$itemId]))
-		{
+		if (!isset($this->menuItems[$this->currentMenu][$itemId])) {
 			return false;
 		}
 
 		$menuItemAction = $this->menuItems[$this->currentMenu][$itemId]['ACTION'];
 
-		if ($menuItemAction['HIDE_MENU'])
-		{
+		if ($menuItemAction['HIDE_MENU']) {
 			$this->skipShowMenu = true;
 		}
 
-		if (isset($menuItemAction['TEXT']))
-		{
+		if (isset($menuItemAction['TEXT'])) {
 			$messageText = str_replace('#USER_NAME#', $_REQUEST["data"]["USER"]["NAME"], $menuItemAction['TEXT']);
-			restCommand('imbot.message.add', Array(
+			restCommand('imbot.message.add', array(
 				"DIALOG_ID" => $this->dialogId,
 				"MESSAGE" => $messageText,
 			), $_REQUEST["auth"]);
 		}
 
-		if ($menuItemAction['TYPE'] == ItrItem::TYPE_MENU)
-		{
+		if ($menuItemAction['TYPE'] == ItrItem::TYPE_MENU) {
 			$this->setCurrentMenu($menuItemAction['MENU']);
-		}
-		else if ($menuItemAction['TYPE'] == ItrItem::TYPE_QUEUE)
-		{
-			restCommand('imopenlines.bot.session.operator', Array(
+		} else if ($menuItemAction['TYPE'] == ItrItem::TYPE_QUEUE) {
+			restCommand('imopenlines.bot.session.operator', array(
 				"CHAT_ID" => substr($this->dialogId, 4),
 			), $_REQUEST["auth"]);
-		}
-		else if ($menuItemAction['TYPE'] == ItrItem::TYPE_USER)
-		{
-			restCommand('imopenlines.bot.session.transfer', Array(
+		} else if ($menuItemAction['TYPE'] == ItrItem::TYPE_USER) {
+			restCommand('imopenlines.bot.session.transfer', array(
 				"CHAT_ID" => substr($this->dialogId, 4),
 				"USER_ID" => $menuItemAction['USER_ID'],
-				"LEAVE" => $menuItemAction['LEAVE']? 'Y': 'N',
+				"LEAVE" => $menuItemAction['LEAVE'] ? 'Y' : 'N',
 			), $_REQUEST["auth"]);
-		}
-		else if ($menuItemAction['TYPE'] == ItrItem::TYPE_BOT)
-		{
+		} else if ($menuItemAction['TYPE'] == ItrItem::TYPE_BOT) {
 			$botId = 0;
-			$result = restCommand('imbot.bot.list', Array(), $_REQUEST["auth"]);
-			foreach ($result['result'] as $botData)
-			{
-				if ($botData['CODE'] == $menuItemAction['BOT_CODE'] && $botData['OPENLINE'] == 'Y')
-				{
+			$result = restCommand('imbot.bot.list', array(), $_REQUEST["auth"]);
+			foreach ($result['result'] as $botData) {
+				if ($botData['CODE'] == $menuItemAction['BOT_CODE'] && $botData['OPENLINE'] == 'Y') {
 					$botId = $botData['ID'];
 					break;
 				}
 			}
-			if ($botId)
-			{
-				restCommand('imbot.chat.user.add', Array(
+			if ($botId) {
+				restCommand('imbot.chat.user.add', array(
 					'CHAT_ID' => substr($this->dialogId, 4),
-   					'USERS' => Array($botId)
+					'USERS' => array($botId)
 				), $_REQUEST["auth"]);
-				if ($menuItemAction['LEAVE'])
-				{
-					restCommand('imbot.chat.leave', Array(
+				if ($menuItemAction['LEAVE']) {
+					restCommand('imbot.chat.leave', array(
 						'CHAT_ID' => substr($this->dialogId, 4)
 					), $_REQUEST["auth"]);
 				}
-			}
-			else if ($menuItemAction['ERROR_TEXT'])
-			{
+			} else if ($menuItemAction['ERROR_TEXT']) {
 				$messageText = str_replace('#USER_NAME#', $_REQUEST["data"]["USER"]["NAME"], $menuItemAction['ERROR_TEXT']);
-				restCommand('imbot.message.add', Array(
+				restCommand('imbot.message.add', array(
 					"DIALOG_ID" => $this->dialogId,
 					"MESSAGE" => $messageText,
 				), $_REQUEST["auth"]);
 				$this->skipShowMenu = false;
 			}
-		}
-		else if ($menuItemAction['TYPE'] == ItrItem::TYPE_FINISH)
-		{
-			restCommand('imopenlines.bot.session.finish', Array(
+		} else if ($menuItemAction['TYPE'] == ItrItem::TYPE_FINISH) {
+			restCommand('imopenlines.bot.session.finish', array(
 				"CHAT_ID" => substr($this->dialogId, 4)
 			), $_REQUEST["auth"]);
-		}
-		else if ($menuItemAction['TYPE'] == ItrItem::TYPE_FUNCTION)
-		{
+		} else if ($menuItemAction['TYPE'] == ItrItem::TYPE_FUNCTION) {
 			$menuItemAction['FUNCTION']($this);
 		}
 
@@ -726,24 +681,21 @@ class Itr
 	private function getMenuItems()
 	{
 		$messageText = '';
-		if ($this->skipShowMenu)
-		{
+		if ($this->skipShowMenu) {
 			$this->skipShowMenu = false;
 			return $messageText;
 		}
 
-		if (isset($this->menuText[$this->currentMenu]))
-		{
-			$messageText = $this->menuText[$this->currentMenu].'[br]';
+		if (isset($this->menuText[$this->currentMenu])) {
+			$messageText = $this->menuText[$this->currentMenu] . '[br]';
 		}
 
-		foreach ($this->menuItems[$this->currentMenu] as $itemId => $data)
-		{
-			$messageText .= '[send='.$itemId.']'.$itemId.'. '.$data['TITLE'].'[/send][br]';
+		foreach ($this->menuItems[$this->currentMenu] as $itemId => $data) {
+			$messageText .= '[send=' . $itemId . ']' . $itemId . '. ' . $data['TITLE'] . '[/send][br]';
 		}
 
 		$messageText = str_replace('#USER_NAME#', $_REQUEST["data"]["USER"]["NAME"], $messageText);
-		restCommand('imbot.message.add', Array(
+		restCommand('imbot.message.add', array(
 			"DIALOG_ID" => $this->dialogId,
 			"MESSAGE" => $messageText,
 		), $_REQUEST["auth"]);
@@ -772,7 +724,7 @@ class ItrMenu
 {
 	private $id = 0;
 	private $text = '';
-	private $items = Array();
+	private $items = array();
 
 	/**
 	 * ItrMenu constructor.
@@ -806,14 +758,13 @@ class ItrMenu
 	public function addItem($id, $title, array $action)
 	{
 		$id = intval($id);
-		if ($id <= 0 && !in_array($action['TYPE'], Array(ItrItem::TYPE_VOID, ItrItem::TYPE_TEXT)))
-		{
+		if ($id <= 0 && !in_array($action['TYPE'], array(ItrItem::TYPE_VOID, ItrItem::TYPE_TEXT))) {
 			return false;
 		}
 
 		$title = trim($title);
 
-		$this->items[$id] = Array(
+		$this->items[$id] = array(
 			'ID' => $id,
 			'TITLE' => $title,
 			'ACTION' => $action
@@ -836,24 +787,24 @@ class ItrItem
 
 	public static function void($hideMenu = true)
 	{
-		return Array(
+		return array(
 			'TYPE' => self::TYPE_VOID,
-			'HIDE_MENU' => $hideMenu? true: false
+			'HIDE_MENU' => $hideMenu ? true : false
 		);
 	}
 
 	public static function sendText($text = '', $hideMenu = false)
 	{
-		return Array(
+		return array(
 			'TYPE' => self::TYPE_TEXT,
 			'TEXT' => $text,
-			'HIDE_MENU' => $hideMenu? true: false
+			'HIDE_MENU' => $hideMenu ? true : false
 		);
 	}
 
 	public static function openMenu($menuId)
 	{
-		return Array(
+		return array(
 			'TYPE' => self::TYPE_MENU,
 			'MENU' => $menuId
 		);
@@ -861,39 +812,39 @@ class ItrItem
 
 	public static function transferToQueue($text = '', $hideMenu = true)
 	{
-		return Array(
+		return array(
 			'TYPE' => self::TYPE_QUEUE,
 			'TEXT' => $text,
-			'HIDE_MENU' => $hideMenu? true: false
+			'HIDE_MENU' => $hideMenu ? true : false
 		);
 	}
 
 	public static function transferToUser($userId, $leave = false, $text = '', $hideMenu = true)
 	{
-		return Array(
+		return array(
 			'TYPE' => self::TYPE_USER,
 			'TEXT' => $text,
-			'HIDE_MENU' => $hideMenu? true: false,
+			'HIDE_MENU' => $hideMenu ? true : false,
 			'USER_ID' => $userId,
-			'LEAVE' => $leave? true: false,
+			'LEAVE' => $leave ? true : false,
 		);
 	}
 
 	public static function transferToBot($botCode, $leave = true, $text = '', $errorText = '')
 	{
-		return Array(
+		return array(
 			'TYPE' => self::TYPE_BOT,
 			'TEXT' => $text,
 			'ERROR_TEXT' => $errorText,
 			'HIDE_MENU' => true,
 			'BOT_CODE' => $botCode,
-			'LEAVE' => $leave? true: false,
+			'LEAVE' => $leave ? true : false,
 		);
 	}
 
 	public static function finishSession($text = '')
 	{
-		return Array(
+		return array(
 			'TYPE' => self::TYPE_FINISH,
 			'TEXT' => $text,
 			'HIDE_MENU' => true
@@ -902,11 +853,11 @@ class ItrItem
 
 	public static function execFunction($function, $text = '', $hideMenu = false)
 	{
-		return Array(
+		return array(
 			'TYPE' => self::TYPE_FUNCTION,
 			'FUNCTION' => $function,
 			'TEXT' => $text,
-			'HIDE_MENU' => $hideMenu? true: false
+			'HIDE_MENU' => $hideMenu ? true : false
 		);
 	}
 }
