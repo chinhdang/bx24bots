@@ -1,26 +1,54 @@
 <?php
-// Disable error reporting (not recommended for production)
-error_reporting(0);
+// Khai báo chế độ strict types cho PHP
+declare(strict_types=1);
+session_start();
+
+// Bao gồm autoloader để tải các lớp cần thiết
+require_once 'vendor/autoload.php';
+
+// Bao gồm các lớp cần thiết từ Bitrix24 PHP SDK và các thư viện khác
+use Bitrix24\SDK\Core\Credentials\AuthToken;
+use Bitrix24\SDK\Core\Credentials\ApplicationProfile;
+use Bitrix24\SDK\Services\ServiceBuilderFactory;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
+use Monolog\Processor\MemoryUsageProcessor;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Component\HttpFoundation\Request;
+
+// Tạo logger để ghi log (không bắt buộc)
+$log = new Logger('bitrix24-php-sdk');
+$log->pushHandler(new StreamHandler('bitrix24-php-sdk.log'));
+$log->pushProcessor(new MemoryUsageProcessor(true, true));
+
+// Tạo đối tượng Request từ HTTP request hiện tại
+$request = Request::createFromGlobals();
+
+// Tạo ServiceBuilderFactory với EventDispatcher và Logger
+$serviceBuilderFactory = new ServiceBuilderFactory(new EventDispatcher(), $log);
 
 
+// Định nghĩa các hằng số cho CLIENT_ID và CLIENT_SECRET
+define('WEBHOOK_URL', 'https://www.uchat.com.au/api/iwh/020dfaf0037d162d394fbb65b192e2e0'); // Thay bằng URL webhook của bạn
 
-#####################
-### CONFIG OF BOT ###
-#####################
-// Constants for configuration of the bot
-define('DEBUG_FILE_NAME', ''); // if you need read debug log, you should write unique log name
-define('CLIENT_ID', ''); // like 'app.67efrrt2990977.85678329' or 'local.57062d3061fc71.97850406' - This code should take in a partner's site, needed only if you want to write a message from Bot at any time without initialization by the user
-define('CLIENT_SECRET', ''); // like '8bb00435c88aaa3028a0d44320d60339' - This code should take in a partner's site, needed only if you want to write a message from Bot at any time without initialization by the user
-#####################
+// Khởi tạo ApplicationProfile với CLIENT_ID và CLIENT_SECRET
+$appProfile = ApplicationProfile::initFromArray([
+    'BITRIX24_PHP_SDK_APPLICATION_CLIENT_ID' => getenv('CLIENT_ID'),
+    'BITRIX24_PHP_SDK_APPLICATION_CLIENT_SECRET' => getenv('CLIENT_SECRET'),
+    'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => 'crm,imbot,impoenlines,imconnector,im.import,messagesevice,im', // Phạm vi cần thiết cho chatbot
+]);
 
-// Log the incoming request for debugging purposes
-writeToLog($_REQUEST, 'ImBot Event Query');
+// Lấy thông tin AUTH từ request
+$authToken = AuthToken::initFromRequest($request);
 
-// Initialize the bot's app configuration
-$appsConfig = Array();
-// Include external configuration file if exists
-if (file_exists(__DIR__.'/config.php'))
-	include(__DIR__.'/config.php');
+// Khởi tạo dịch vụ Bitrix24
+$bitrix24 = $serviceBuilderFactory->getServiceBuilder($appProfile, $authToken, $request->get('DOMAIN'));
+
+// Lấy dữ liệu từ request
+$requestData = $request->request->all();
+
+// Ghi log dữ liệu nhận được (tùy chọn)
+$log->info('Received request from Bitrix24', $requestData);
 
 // receive event "new message for bot"
 if ($_REQUEST['event'] == 'ONIMBOTMESSAGEADD')
