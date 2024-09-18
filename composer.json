@@ -10,10 +10,15 @@
     }
   ],
   "require": {
-    "bitrix24/b24phpsdk": "1.0",
-    "monolog/monolog": "^3",
-    "symfony/dotenv": "^7"
-  },
+    "php": "^8.3.11",
+    "ext-bcmath": "*",
+    "ext-intl": "*",
+    "bitrix24/b24phpsdk": "^1.0",
+    "monolog/monolog": "^3.7",
+    "symfony/dotenv": "^7.1",
+    "symfony/http-foundation": "^7.1",
+    "symfony/event-dispatcher": "^7.1"
+},
   "require-dev": {
     "roave/security-advisories": "dev-latest"
   }

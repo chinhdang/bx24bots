@@ -16,9 +16,9 @@ use Symfony\Component\HttpFoundation\Request;
 require_once 'vendor/autoload.php';
 
 // Định nghĩa các hằng số cho CLIENT_ID và CLIENT_SECRET
-define('CLIENT_ID', 'YOUR_CLIENT_ID'); // Thay bằng CLIENT_ID của bạn
-define('CLIENT_SECRET', 'YOUR_CLIENT_SECRET'); // Thay bằng CLIENT_SECRET của bạn
-define('WEBHOOK_URL', 'https://your-make-or-n8n-webhook-url'); // Thay bằng URL webhook của bạn
+define('CLIENT_ID', 'local.66d7563c7793e6.21062361'); // Thay bằng CLIENT_ID của bạn
+define('CLIENT_SECRET', 'lW0G5wkmRjabYC8P7uYulZ3UtV88WcY2px4kAfHfDpojdcxgye'); // Thay bằng CLIENT_SECRET của bạn
+define('WEBHOOK_URL', 'https://www.uchat.com.au/api/iwh/020dfaf0037d162d394fbb65b192e2e0'); // Thay bằng URL webhook của bạn
 
 // Tạo đối tượng Request từ HTTP request hiện tại
 $request = Request::createFromGlobals();

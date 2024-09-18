@@ -343,6 +343,7 @@ function saveParams($params)
  * @param boolean $authRefresh - Flag to refresh the authorization token if expired.
  * @return mixed
  */
+
 function restCommand($method, array $params = Array(), array $auth = Array(), $authRefresh = true)
 {
 	// $auth["client_endpoint"] là URL gốc để truy cập API của Bitrix24.
