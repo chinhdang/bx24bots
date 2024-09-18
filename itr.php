@@ -38,8 +38,32 @@ $appProfile = ApplicationProfile::initFromArray([
     'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => '', // Phạm vi cần thiết cho chatbot
 ]);
 
-// Lấy thông tin AUTH từ request
-$authToken = AuthToken::initFromRequest($request);
+// Hàm lấy thông tin xác thực
+function getAuth($request)
+{
+    if (isset($_SESSION['AUTH'])) {
+        return AuthToken::initFromArray($_SESSION['AUTH']);
+    } elseif ($request->request->has('AUTH_ID') && $request->request->has('REFRESH_ID')) {
+        $expiresIn = (int)$request->request->get('AUTH_EXPIRES');
+        $expires = time() + $expiresIn;
+        
+        $authData = [
+            'access_token' => $request->request->get('AUTH_ID'),
+            'refresh_token' => $request->request->get('REFRESH_ID'),
+            'member_id' => $request->request->get('member_id'),
+            'domain' => $request->request->get('DOMAIN'),
+            'application_token' => $request->request->get('APP_SID'),
+            'expires_in' => $expiresIn,
+            'expires' => $expires, // Thêm khóa 'expires' vào mảng
+        ];
+
+        $_SESSION['AUTH'] = $authData;
+
+        return AuthToken::initFromArray($authData);
+    } else {
+        return null; // Trả về null thay vì false
+    }
+}
 
 // Khởi tạo dịch vụ Bitrix24
 $bitrix24 = $serviceBuilderFactory->getServiceBuilder($appProfile, $authToken, $request->get('DOMAIN'));
