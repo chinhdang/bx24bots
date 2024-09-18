@@ -66,7 +66,7 @@ function getAuth($request)
 }
 
 // Khởi tạo dịch vụ Bitrix24
-$bitrix24 = $serviceBuilderFactory->getServiceBuilder($appProfile, $authToken, $request->get('DOMAIN'));
+$bitrix24 = $serviceBuilderFactory->initFromRequest($appProfile, $auth, $request->get('DOMAIN'));
 
 // Lấy dữ liệu từ request
 $requestData = $request->request->all();
