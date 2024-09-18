@@ -28,14 +28,14 @@ $request = Request::createFromGlobals();
 $serviceBuilderFactory = new ServiceBuilderFactory(new EventDispatcher(), $log);
 
 
-// Định nghĩa các hằng số cho CLIENT_ID và CLIENT_SECRET
+// Định nghĩa webhook url
 define('WEBHOOK_URL', 'https://www.uchat.com.au/api/iwh/020dfaf0037d162d394fbb65b192e2e0'); // Thay bằng URL webhook của bạn
 
 // Khởi tạo ApplicationProfile với CLIENT_ID và CLIENT_SECRET
 $appProfile = ApplicationProfile::initFromArray([
     'BITRIX24_PHP_SDK_APPLICATION_CLIENT_ID' => getenv('CLIENT_ID'),
     'BITRIX24_PHP_SDK_APPLICATION_CLIENT_SECRET' => getenv('CLIENT_SECRET'),
-    'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => '', // Phạm vi cần thiết cho chatbot
+    'BITRIX24_PHP_SDK_APPLICATION_SCOPE' => getenv('SCOPE'), // Phạm vi cần thiết cho chatbot
 ]);
 
 // Hàm lấy thông tin xác thực
@@ -83,6 +83,12 @@ $requestData = $request->request->all();
 // Ghi log dữ liệu nhận được (tùy chọn)
 $log->info('Received request from Bitrix24', $requestData);
 
+
+// Kiểm tra xem có khóa "event" trong $_REQUEST hay không
+if (isset($_REQUEST['event'])) {
+    // Nhận sự kiện từ $_REQUEST
+    $event = $_REQUEST['event'];
+	
 // receive event "new message for bot"
 if ($_REQUEST['event'] == 'ONIMBOTMESSAGEADD')
 {
