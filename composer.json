@@ -1,14 +1,7 @@
 {
-  "name": "bitrix24/b24phpsdk-local-app-example",
-  "description": "Example for work with bitrix24-php-sdk with local application",
-  "minimum-stability": "stable",
-  "license": "MIT",
-  "authors": [
-    {
-      "name": "Maksim Mesilov",
-      "email": "mesilov.maxim@gmail.com"
-    }
-  ],
+  "name": "chinhdang/bx24chatbot",
+  "description": "bx24 chatbot application",
+  "type": "project",
   "require": {
     "php": "^8.3.11",
     "ext-bcmath": "*",
@@ -18,8 +11,30 @@
     "symfony/dotenv": "^7.1",
     "symfony/http-foundation": "^7.1",
     "symfony/event-dispatcher": "^7.1"
-},
+  },
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Chinhdang\\Bx24Helloworld\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "chinhdang",
+      "email": "dangdinhchinh@gmail.com"
+    }
+  ],
   "require-dev": {
     "roave/security-advisories": "dev-latest"
-  }
+  },
+  "config": {
+    "vendor-dir": "vendor",
+    "preferred-install": "dist",
+    "archive": {
+      "exclude": [
+        ".github"
+      ]
+    }
+  },
+  "minimum-stability": "stable"
 }
