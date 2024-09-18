@@ -89,7 +89,7 @@ if (isset($_REQUEST['event'])) {
 	$event = $_REQUEST['event']; // Nhận sự kiện từ $_REQUEST
 
 	// receive event "new message for bot"
-	if ($_REQUEST['event'] == 'ONIMBOTMESSAGEADD') {
+	if ($event == 'ONIMBOTMESSAGEADD') {
 		if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 			return false; // Check the event - If the application token is authorized
 		if ($_REQUEST['data']['PARAMS']['CHAT_ENTITY_TYPE'] != 'LINES')
@@ -98,7 +98,7 @@ if (isset($_REQUEST['event'])) {
 	}
 
 	// Handle the event when the bot joins a chat
-	if ($_REQUEST['event'] == 'ONIMBOTJOINCHAT') {
+	if ($event == 'ONIMBOTJOINCHAT') {
 		// check the event - authorize this event or not
 		if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 			return false;
@@ -129,7 +129,7 @@ if (isset($_REQUEST['event'])) {
 } 
 
 // Receive event "Application install"
-else if ($event == 'ONAPPINSTALL') {
+else if (isset($event) && $event == 'ONAPPINSTALL') {
 	$handlerBackUrl = ($_SERVER['SERVER_PORT'] == 443 || $_SERVER["HTTPS"] == "on" ? 'https' : 'http') . "://" . $_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443)) ? '' : ':' . $_SERVER['SERVER_PORT']) . $_SERVER['SCRIPT_NAME'];
 
 	// Register the bot with the Bitrix24 API
@@ -169,7 +169,7 @@ else if ($event == 'ONAPPINSTALL') {
 }
 
 // Receive event "Application update"
-else if ($_event == 'ONAPPUPDATE') {
+else if (isset($event) && $event == 'ONAPPUPDATE') {
 	// Check the event: check for valid application token
 	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 		return false;
