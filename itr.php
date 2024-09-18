@@ -112,7 +112,7 @@ if (isset($_REQUEST['event'])) {
 	}
 
 	// receive event "delete chat-bot"
-	else if ($_REQUEST['event'] == 'ONIMBOTDELETE') {
+	else if ($event == 'ONIMBOTDELETE') {
 		// check the event - authorize this event or not
 		if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 			return false;
@@ -129,28 +129,8 @@ if (isset($_REQUEST['event'])) {
 } 
 
 // Receive event "Application install"
-else if ($_REQUEST['event'] == 'ONAPPINSTALL') {
-	/* Handler for events
-	In the given code snippet, $_SERVER['SERVER_NAME'] plays a key role in constructing the $handlerBackUrl by providing the domain name (or IP address) of the server where the script is running. 
-	This is important because $handlerBackUrl needs to contain the full URL that the bot can use to communicate back with the server when handling various events.
-
-	Here's a breakdown of how $_SERVER['SERVER_NAME'] fits into $handlerBackUrl:
-
-	- $handlerBackUrl is constructed as the full URL for event handlers that the bot will register. It needs to include:
-	1. The protocol (http or https), determined by checking if the server is running on port 443 or using HTTPS ($_SERVER['SERVER_PORT'] == 443 || $_SERVER["HTTPS"] == "on").
-	2. The server's domain name or IP address, provided by $_SERVER['SERVER_NAME']. This variable holds the domain name of the host where the request is being processed (like example.com).
-	3. The port number, appended to the URL if it's not the default HTTP (80) or HTTPS (443) port.
-	4. The script's path ($_SERVER['SCRIPT_NAME']), representing the path to the current executing script (like /bot.php).
-	
-	So, $_SERVER['SERVER_NAME'] ensures that the bot's callback URL points to the correct domain or IP address, where it can be reached for event handling.
-
-	For example:
-	If $_SERVER['SERVER_NAME'] is example.com, and the server is running over HTTPS (port 443), then $handlerBackUrl might look like: https://example.com/bot.php.
-	*/
+else if ($event == 'ONAPPINSTALL') {
 	$handlerBackUrl = ($_SERVER['SERVER_PORT'] == 443 || $_SERVER["HTTPS"] == "on" ? 'https' : 'http') . "://" . $_SERVER['SERVER_NAME'] . (in_array($_SERVER['SERVER_PORT'], array(80, 443)) ? '' : ':' . $_SERVER['SERVER_PORT']) . $_SERVER['SCRIPT_NAME'];
-
-	// If your application supports different localizations
-	// use $_REQUEST['data']['LANGUAGE_ID'] to load correct localization
 
 	// Register the bot with the Bitrix24 API
 	$result = restCommand('imbot.register', array(
@@ -189,7 +169,7 @@ else if ($_REQUEST['event'] == 'ONAPPINSTALL') {
 }
 
 // Receive event "Application update"
-else if ($_REQUEST['event'] == 'ONAPPUPDATE') {
+else if ($_event == 'ONAPPUPDATE') {
 	// Check the event: check for valid application token
 	if (!isset($appsConfig[$_REQUEST['auth']['application_token']]))
 		return false;
