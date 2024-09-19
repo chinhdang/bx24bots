@@ -1,0 +1,5 @@
+DirectoryIndex bot.php
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ bot.php [QSA,L]
